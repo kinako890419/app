@@ -36,6 +36,7 @@ build/
 ## logs
 /logs/
 /logback-logs/
+/otel-logs/
 
 # ai chat
 /.claude/

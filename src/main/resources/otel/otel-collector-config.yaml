@@ -49,12 +49,28 @@ exporters:
     endpoint: data-prepper:21890
     tls:
       insecure: true
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+    sending_queue:
+      enabled: true
+      queue_size: 100
 
   # Data Prepper (for OpenSearch Log Analytics)
   otlp/data-prepper-logs:
     endpoint: data-prepper:21891
     tls:
       insecure: true
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+    sending_queue:
+      enabled: true
+      queue_size: 100
 
 service:
   telemetry:
