@@ -1,0 +1,94 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: local-exp-otel-collector
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ../src/main/resources/otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - ../otel-logs:/var/log/otel
+    ports:
+      - "4318:4318"   # OTLP HTTP receiver
+      - "4317:4317"   # OTLP gRPC receiver
+    depends_on:
+      opensearch:
+        condition: service_healthy
+      grafana-lgtm:
+        condition: service_started
+      data-prepper:
+        condition: service_started
+
+  app-mysql:
+    image: 'mysql:latest'
+    env_file:
+      - .env
+    ports:
+      - '${MYSQL_HOST_PORT:-3333}:3306'
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app-grafana-lgtm:
+    image: 'grafana/otel-lgtm:latest'
+    ports:
+      - '3000:3000'
+
+  # OpenSearch
+  opensearch:
+    image: opensearchproject/opensearch:latest
+    container_name: app-opensearch
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - DISABLE_SECURITY_PLUGIN=true
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -s http://localhost:9200 | grep -q 'cluster_name'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:latest
+    container_name: app-opensearch-dashboards
+    environment:
+      - OPENSEARCH_HOSTS=http://opensearch:9200
+      - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+    ports:
+      - "5601:5601"
+    depends_on:
+      opensearch:
+        condition: service_healthy
+
+  # Data Prepper (OpenSearch Trace & Log Analytics)
+  data-prepper:
+    image: opensearchproject/data-prepper:latest
+    container_name: local-exp-data-prepper
+    volumes:
+      - ../src/main/resources/opensearch/data-prepper-pipelines.yaml:/usr/share/data-prepper/pipelines/pipelines.yaml
+      - ../src/main/resources/opensearch/data-prepper-config.yaml:/usr/share/data-prepper/config/data-prepper-config.yaml
+    ports:
+      - "21890:21890"   # OTLP traces
+      - "21891:21891"   # OTLP logs
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -sf http://localhost:4900 || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    depends_on:
+      opensearch:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data

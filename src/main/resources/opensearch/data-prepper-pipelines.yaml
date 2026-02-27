@@ -1,0 +1,45 @@
+otel-logs-pipeline:
+  source:
+    otel_logs_source:
+      ssl: false
+      port: 21891
+  sink:
+    - opensearch:
+        hosts: ["http://opensearch:9200"]
+        insecure: true
+        index: otel-logs
+
+otel-trace-pipeline:
+  source:
+    otel_trace_source:
+      ssl: false
+  sink:
+    - pipeline:
+        name: raw-trace-pipeline
+    - pipeline:
+        name: service-map-pipeline
+
+raw-trace-pipeline:
+  source:
+    pipeline:
+      name: otel-trace-pipeline
+  processor:
+    - otel_traces:
+        trace_flush_interval: 15
+  sink:
+    - opensearch:
+        hosts: ["http://opensearch:9200"]
+        insecure: true
+        index_type: trace-analytics-raw
+
+service-map-pipeline:
+  source:
+    pipeline:
+      name: otel-trace-pipeline
+  processor:
+    - service_map:
+  sink:
+    - opensearch:
+        hosts: ["http://opensearch:9200"]
+        insecure: true
+        index_type: trace-analytics-service-map

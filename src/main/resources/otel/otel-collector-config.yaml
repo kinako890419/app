@@ -1,0 +1,77 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 1000
+
+exporters:
+  # Export to JSON files
+  file/logs:
+    path: /var/log/otel/logs.json
+    format: json
+
+  file/traces:
+    path: /var/log/otel/traces.json
+    format: json
+
+  file/metrics:
+    path: /var/log/otel/metrics.json
+    format: json
+
+  # Grafana LGTM exporter
+  otlp_http/grafana:
+    endpoint: http://grafana-lgtm:4318
+
+  # OpenSearch exporter
+  opensearch/logs:
+    http:
+      endpoint: http://opensearch:9200
+      tls:
+        insecure: true
+    logs_index: otel-logs
+
+  opensearch/traces:
+    http:
+      endpoint: http://opensearch:9200
+      tls:
+        insecure: true
+    traces_index: otel-traces
+
+  # Data Prepper (for OpenSearch Trace Analytics)
+  otlp/data-prepper:
+    endpoint: data-prepper:21890
+    tls:
+      insecure: true
+
+  # Data Prepper (for OpenSearch Log Analytics)
+  otlp/data-prepper-logs:
+    endpoint: data-prepper:21891
+    tls:
+      insecure: true
+
+service:
+  telemetry:
+    logs:
+      level: debug
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [file/logs, otlp_http/grafana, opensearch/logs, otlp/data-prepper-logs]
+
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [file/traces, otlp_http/grafana, opensearch/traces, otlp/data-prepper]
+
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [file/metrics, otlp_http/grafana]
