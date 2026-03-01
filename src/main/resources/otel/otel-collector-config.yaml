@@ -37,15 +37,8 @@ exporters:
         insecure: true
     logs_index: otel-logs
 
-  opensearch/traces:
-    http:
-      endpoint: http://opensearch:9200
-      tls:
-        insecure: true
-    traces_index: otel-traces
-
   # Data Prepper (for OpenSearch Trace Analytics)
-  otlp/data-prepper:
+  otlp/data-prepper-traces:
     endpoint: data-prepper:21890
     tls:
       insecure: true
@@ -58,19 +51,19 @@ exporters:
       enabled: true
       queue_size: 100
 
-  # Data Prepper (for OpenSearch Log Analytics)
-  otlp/data-prepper-logs:
-    endpoint: data-prepper:21891
-    tls:
-      insecure: true
-    retry_on_failure:
-      enabled: true
-      initial_interval: 5s
-      max_interval: 30s
-      max_elapsed_time: 300s
-    sending_queue:
-      enabled: true
-      queue_size: 100
+#  # Data Prepper (for OpenSearch Log Analytics)
+#  otlp/data-prepper-logs:
+#    endpoint: data-prepper:21891
+#    tls:
+#      insecure: true
+#    retry_on_failure:
+#      enabled: true
+#      initial_interval: 5s
+#      max_interval: 30s
+#      max_elapsed_time: 300s
+#    sending_queue:
+#      enabled: true
+#      queue_size: 100
 
 service:
   telemetry:
@@ -80,14 +73,14 @@ service:
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [file/logs, otlp_http/grafana, opensearch/logs, otlp/data-prepper-logs]
+      exporters: [file/logs, opensearch/logs]
 
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [file/traces, otlp_http/grafana, opensearch/traces, otlp/data-prepper]
+      exporters: [file/traces, otlp/data-prepper-traces]
 
     metrics:
       receivers: [otlp]
       processors: [batch]
-      exporters: [file/metrics, otlp_http/grafana]
+      exporters: [file/metrics, prometheus]
